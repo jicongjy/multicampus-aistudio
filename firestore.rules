@@ -1,0 +1,96 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'dangmujy@gmail.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidRegistration(data) {
+      return data.keys().hasAll(['name', 'phone', 'email', 'count', 'agree', 'createdAt']) &&
+             data.keys().hasOnly(['id', 'docId', 'name', 'phone', 'phoneDigits', 'email', 'count', 'memo', 'mkt', 'agree', 'agreedAt', 'createdAt', 'updatedAt']) &&
+             (!('docId' in data) || (data.docId is string && data.docId.size() <= 64)) &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 20 &&
+             data.phone is string && data.phone.size() <= 20 &&
+             (!('phoneDigits' in data) || (data.phoneDigits is string && data.phoneDigits.size() <= 15)) &&
+             data.email is string && data.email.size() <= 100 &&
+             data.count is number && data.count >= 1 && data.count <= 99 &&
+             (!('memo' in data) || (data.memo is string && data.memo.size() <= 500)) &&
+             (!('mkt' in data) || data.mkt is bool) &&
+             data.agree == true &&
+             (!('agreedAt' in data) || data.agreedAt == null || (data.agreedAt is string && data.agreedAt.size() <= 40)) &&
+             data.createdAt is string && data.createdAt.size() <= 40 &&
+             (!('updatedAt' in data) || data.updatedAt == null || (data.updatedAt is string && data.updatedAt.size() <= 40));
+    }
+
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isValidId(settingId) && isAdmin();
+    }
+
+    match /phone_index/{phoneDigits} {
+      // Anyone can check if a phone number is registered (no PII exposed)
+      allow get: if isValidId(phoneDigits);
+      allow list: if isAdmin();
+      allow create: if isValidId(phoneDigits) &&
+                       incoming().keys().hasOnly(['registered', 'createdAt']) &&
+                       incoming().registered == true &&
+                       incoming().createdAt is string &&
+                       (isAdmin() || !exists(/databases/$(database)/documents/phone_index/$(phoneDigits)));
+      allow delete: if isValidId(phoneDigits) && isAdmin();
+    }
+
+    match /registrations/{registrationId} {
+      // Admin can get single document, or participant can get their own
+      allow get: if isValidId(registrationId) && (isAdmin() || (isSignedIn() && existing().email == request.auth.token.email));
+      
+      // Admin can list all registrations
+      allow list: if isAdmin();
+
+      // Anyone can submit a valid new registration if it doesn't already exist
+      allow create: if isValidId(registrationId) &&
+                       isValidRegistration(incoming()) &&
+                       (isAdmin() || !exists(/databases/$(database)/documents/registrations/$(registrationId)));
+
+      // Only admin can update or delete registrations
+      allow update: if isValidId(registrationId) &&
+                       isAdmin() &&
+                       isValidRegistration(incoming()) &&
+                       incoming().createdAt == existing().createdAt;
+
+      allow delete: if isValidId(registrationId) && isAdmin();
+    }
+  }
+}

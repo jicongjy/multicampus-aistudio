@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "Registration": {
+      "title": "Registration",
+      "description": "Event registration entry submitted by a participant with PII",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "number",
+          "description": "Sequential or numeric identifier for display"
+        },
+        "name": {
+          "type": "string",
+          "description": "Participant name (Korean or English, 2-20 characters)",
+          "minLength": 2,
+          "maxLength": 20
+        },
+        "phone": {
+          "type": "string",
+          "description": "Participant mobile phone number (01X-XXXX-XXXX)",
+          "maxLength": 20
+        },
+        "phoneDigits": {
+          "type": "string",
+          "description": "Normalized phone digits for index matching",
+          "maxLength": 15
+        },
+        "email": {
+          "type": "string",
+          "description": "Participant email address",
+          "maxLength": 100
+        },
+        "count": {
+          "type": "number",
+          "description": "Number of participants attending (1-99)"
+        },
+        "memo": {
+          "type": "string",
+          "description": "Additional notes or requests",
+          "maxLength": 500
+        },
+        "mkt": {
+          "type": "boolean",
+          "description": "Marketing information consent"
+        },
+        "agree": {
+          "type": "boolean",
+          "description": "Privacy policy consent (required)"
+        },
+        "agreedAt": {
+          "type": "string",
+          "description": "ISO timestamp when privacy policy was consented to"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp when the registration was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp when the registration was updated"
+        }
+      },
+      "required": ["name", "phone", "email", "count", "agree", "createdAt"]
+    },
+    "PhoneIndex": {
+      "title": "PhoneIndex",
+      "description": "Anonymized phone registry for duplicate prevention without exposing PII",
+      "type": "object",
+      "properties": {
+        "registered": {
+          "type": "boolean",
+          "description": "Registration status indicator"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["registered", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/registrations/{registrationId}": {
+      "schema": "Registration",
+      "description": "Collection of event registrations with attendee details (Admin only read)"
+    },
+    "/phone_index/{phoneDigits}": {
+      "schema": "PhoneIndex",
+      "description": "Public phone existence index for duplicate check"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "이벤트 참가 신청",
+  "description": "이벤트 참가 신청 및 관리자 접수 관리 웹 애플리케이션",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
